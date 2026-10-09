@@ -3,7 +3,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
-const require = createRequire(import.meta.url);
+const require = createRequire(new URL('../packages/server/package.json', import.meta.url));
 const root = dirname(require.resolve('@photon-ai/imessage-kit'));
 const pkg = JSON.parse(readFileSync(join(root,'../package.json'),'utf8'));
 if (pkg.version !== '3.0.0') throw new Error('Photon patch requires audited 3.0.0');
