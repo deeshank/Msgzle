@@ -16,9 +16,9 @@ No receive, history, attachments, group creation, AI replies or multi-user hosti
 
 ## Install on a Mac
 
-Download the matching Apple Silicon or Intel DMG from GitHub Releases, drag Msgzle to Applications and open it. macOS 13 or newer is the build target; supported-version and permission testing is not complete.
+Release packaging targets both Intel (x64) and Apple Silicon (arm64) Macs. Download your matching DMG from GitHub Releases when published, drag Msgzle to Applications and open it. macOS 13 or newer is the build target; supported-version and permission testing is not complete.
 
-The initial build is not Developer ID signed or notarized. Gatekeeper may block it. Do not disable macOS protections. Apple signing can be added to the same packaging workflow later. No startup item is installed automatically.
+The release pipeline requires Developer ID signing, Apple notarization and stapling, strict codesign verification and Gatekeeper checks before it uploads artifacts. No startup item is installed automatically. First launch, Automation permissions and a second-version update have not yet been tested.
 
 Open setup from the menu bar. Read the access token from `~/Library/Application Support/Msgzle/config.json` locally and enter it in the setup page. Add allowed recipients before enabling sends. Messages must already be signed in. The first reviewed send may trigger an Automation permission prompt. This v0 does not request Full Disk Access or enable receive.
 
@@ -48,7 +48,7 @@ Photon is pinned at 3.0.0. It internally retries AppleScript by default. Our che
 
 ## Updates and releases
 
-The Mac app includes Sparkle 2.10.0. Generate one Ed25519 seed, keep it private as `SPARKLE_PRIVATE_KEY`, and set the matching `SPARKLE_PUBLIC_KEY` repository variable. Never commit the private key. The release build signs update archives and creates a draft prerelease. Missing keys stop the release build. Review its assets before making it public.
+The Mac app includes Sparkle 2.10.0. Generate one Ed25519 seed, keep it private as `SPARKLE_PRIVATE_KEY`, and set the matching `SPARKLE_PUBLIC_KEY` repository variable. Never commit the private key. The tag-triggered release build signs update archives, verifies each signature against the app's public key, and uploads the notarized packages. Missing signing keys stop the build. Developer previews are prereleases. Per-architecture feeds are published in this repository only after release assets are public. SHA-256 files accompany the DMG and ZIP assets.
 
 Automatic update installation is not yet verified end to end. It requires a signed second release and a Mac upgrade test. Apple Developer ID signing is separate from Sparkle signature verification. Dependency patches go through CI/review, not unattended npm-latest installation. Releases must preserve the pinned signing key; future versions need their version/build/feed metadata bumped together.
 
