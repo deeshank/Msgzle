@@ -1,0 +1,15 @@
+name: Check
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.0
+      - run: bun install --frozen-lockfile --ignore-scripts
+      - run: bun scripts/patch-photon.mjs
+      - run: bun run check && bun run build && bun test
