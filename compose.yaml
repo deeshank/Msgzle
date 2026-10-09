@@ -1,0 +1,12 @@
+services:
+  msgzle:
+    build: .
+    ports:
+      - "127.0.0.1:19791:19791"
+    environment:
+      MSGZLE_ORIGIN: "${MSGZLE_ORIGIN:-http://127.0.0.1:19791}"
+    volumes:
+      - msgzle-data:/data
+    restart: unless-stopped
+volumes:
+  msgzle-data:
