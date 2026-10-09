@@ -1,7 +1,9 @@
-Early developer preview of Msgzle: a TypeScript client, minimal Mac service, optional self-hosted relay, and setup page.
+# Msgzle 0.0.1 - developer preview
 
-This release is not Apple Developer ID signed or notarized. macOS may block it. Do not disable Gatekeeper or System Integrity Protection. Download the matching Apple Silicon or Intel DMG, place Msgzle in Applications, and open it only if macOS permits. No startup item is installed automatically.
+A minimal TypeScript SDK and self-hosted iMessage bridge built on Photon. This prerelease packages a Mac menu-bar app with its service embedded, an optional Linux relay, and a small setup page.
 
-Sends are off until the owner sets an allowlist. There is no receive/history feature. Dispatch accepted does not mean recipient delivery. Uncertain commands are not retried automatically.
+Choose Msgzle-x64.dmg for Intel or Msgzle-arm64.dmg for Apple Silicon. Drag Msgzle to Applications. No startup item is installed automatically. The pipeline requires Developer ID signing, Apple notarization and stapling, strict codesign verification and Gatekeeper checks before uploading packages. SHA-256 files accompany each architecture's DMG and ZIP.
 
-Sparkle is wired for signed update archives. Automatic update behavior is not yet verified with a second release on a Mac. Missing update secrets stop the build. This is not a production-readiness claim.
+Sends are off by default with an explicit recipient allowlist. Receive/history are not included. Dispatch accepted is not recipient delivery; uncertain sends are never blindly retried. No real messages were sent during build verification.
+
+This is an early developer preview, not production-ready. First launch and macOS Automation permissions have not been tested. Sparkle update archives are signed and their signatures checked against the app's public key; repository-hosted update feeds are published after the release assets become public. A second-version upgrade has not been tested. Do not treat automatic update installation as proven yet. macOS 13 or newer is the build target, not a tested compatibility promise.
