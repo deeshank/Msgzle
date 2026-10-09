@@ -1,0 +1,1 @@
+{"name":"msgzle-workspace","private":true,"version":"0.0.1","type":"module","workspaces":["packages/*"],"scripts":{"build":"tsc -p packages/sdk/tsconfig.json","check":"tsc --noEmit","test":"bun test","patch:photon":"node scripts/patch-photon.mjs"},"devDependencies":{"@types/bun":"1.3.0","typescript":"5.9.3"}}
