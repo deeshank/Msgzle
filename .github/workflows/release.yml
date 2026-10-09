@@ -1,12 +1,17 @@
-name: Mac release
+name: Signed Mac release
 on:
+  workflow_dispatch:
   push:
     tags: ['v*']
 permissions:
-  contents: write
+  contents: read
+concurrency:
+  group: msgzle-release-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - arch: arm64
@@ -14,18 +19,52 @@ jobs:
           - arch: x64
             runner: macos-15-intel
     runs-on: ${{ matrix.runner }}
+    environment: release
     env:
       SPARKLE_PUBLIC_KEY: ${{ vars.SPARKLE_PUBLIC_KEY }}
       MSGZLE_BUILD_NUMBER: ${{ github.run_number }}
+      MSGZLE_SIGNING_IDENTITY: ${{ vars.MSGZLE_SIGNING_IDENTITY }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
           bun-version: 1.3.0
+      - name: Validate release tag
+        env:
+          RELEASE_REF: ${{ github.ref }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if [[ "$RELEASE_REF" == refs/tags/* ]]; then
+            test "$RELEASE_TAG" = "v$(bun -e 'console.log(require("./package.json").version)')"
+          fi
       - run: bun install --frozen-lockfile --ignore-scripts
       - run: bun scripts/patch-photon.mjs
       - run: bun run check && bun run build && bun test
+      - name: Import selected signing identity
+        env:
+          CERTIFICATE_P12: ${{ secrets.CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$CERTIFICATE_P12"; test -n "$CERTIFICATE_PASSWORD"
+          keychain="$RUNNER_TEMP/msgzle.keychain-db"
+          password=$(openssl rand -hex 32)
+          printf '%s' "$CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/msgzle.p12"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$RUNNER_TEMP/msgzle.p12" -P "$CERTIFICATE_PASSWORD" -k "$keychain" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain"
+          security list-keychains -d user -s "$keychain"
+          rm "$RUNNER_TEMP/msgzle.p12"
+          security find-identity -v -p codesigning "$keychain"
       - run: bash scripts/build-mac.sh ${{ matrix.arch }}
+      - name: Notarize and staple
+        env:
+          APPLE_ID: ${{ vars.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: bash scripts/notarize-mac.sh ${{ matrix.arch }}
       - name: Sign update archive
         env:
           SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
@@ -33,23 +72,34 @@ jobs:
           test -n "$SPARKLE_PRIVATE_KEY"
           printf '%s' "$SPARKLE_PRIVATE_KEY" | build/vendor/bin/sign_update --ed-key-file - build/Msgzle-${{ matrix.arch }}.zip > build/signature.txt
           bun scripts/appcast.ts ${{ matrix.arch }}
-      - uses: actions/upload-artifact@v4
+          bun scripts/verify-update.mjs ${{ matrix.arch }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: mac-${{ matrix.arch }}
           path: |
             build/*.dmg
             build/*.zip
             build/appcast-*.xml
+            build/checksums-*.txt
+      - name: Remove temporary signing material
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/msgzle.p12"
+          security delete-keychain "$RUNNER_TEMP/msgzle.keychain-db" || true
   release:
+    if: startsWith(github.ref, 'refs/tags/')
     needs: build
     runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           path: artifacts
           merge-multiple: true
       - env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
-        run: gh release create "$RELEASE_TAG" artifacts/* --draft --prerelease --title "Msgzle 0.0.1 - developer preview" --notes-file docs/RELEASE.md
+        run: gh release create "$RELEASE_TAG" artifacts/* --draft --prerelease --title "Msgzle ${RELEASE_TAG#v} - developer preview" --notes-file docs/RELEASE.md
