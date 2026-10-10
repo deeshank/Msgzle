@@ -15,5 +15,6 @@ export class Store {
  }
  transition(id:string,from:string,to:string):boolean {return this.db.query('UPDATE commands SET state=? WHERE id=? AND state=?').run(to,id,from).changes===1;}
  next():Command|undefined {const row=this.db.query("SELECT id FROM commands WHERE state='queued' ORDER BY createdAt LIMIT 1").get() as any;return row?this.get(row.id):undefined;}
+ latest(){const r=this.db.query("SELECT toAddress,state,createdAt FROM commands WHERE state IN ('dispatch-accepted','uncertain') ORDER BY createdAt DESC LIMIT 1").get() as any;return r?{to:r.toAddress,state:r.state,createdAt:r.createdAt}:null;}
  close(){this.db.close();}
 }
