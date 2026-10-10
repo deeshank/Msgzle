@@ -8,7 +8,7 @@ Early developer preview, not production-ready. A Mac signed into Messages is req
 
 - Small TypeScript client: health, text send, command status and queued cancellation.
 - Durable command IDs, recipient allowlists and sending disabled by default.
-- Mac menu-bar app, embedded Bun service, minimal local setup page.
+- Mac menu-bar app, embedded Bun service and native General/Advanced Settings.
 - Optional personal-cloud relay with outbound Mac polling. No public Mac port.
 - GitHub Actions Mac packaging and Sparkle-signed update feed plumbing.
 
@@ -18,9 +18,9 @@ No receive, history, attachments, group creation, AI replies or multi-user hosti
 
 Release packaging targets both Intel (x64) and Apple Silicon (arm64) Macs. Download your matching DMG from GitHub Releases when published, drag Msgzle to Applications and open it. macOS 13 or newer is the build target; supported-version and permission testing is not complete.
 
-The release pipeline requires Developer ID signing, Apple notarization and stapling, strict codesign verification and Gatekeeper checks before it uploads artifacts. No startup item is installed automatically. First launch, Automation permissions and a second-version update have not yet been tested.
+The release pipeline requires Developer ID signing, Apple notarization and stapling, strict codesign verification and Gatekeeper checks before it uploads artifacts. No startup item is installed automatically. A private Intel/macOS 26.7.1 build has been launched and an owner-reviewed text send succeeded. Clean-install release permission behavior, ARM runtime and a second-version automatic update are not yet verified.
 
-Open setup from the menu bar. Read the access token from `~/Library/Application Support/Msgzle/config.json` locally and enter it in the setup page. Add allowed recipients before enabling sends. Messages must already be signed in. The first reviewed send may trigger an Automation permission prompt. This v0 does not request Full Disk Access or enable receive.
+Open Settings from the menu bar. Reveal/Copy the generated API key in Advanced for SDK clients. Add selected recipients or explicitly choose Everyone before enabling sends. Contacts suggestions stay local and require permission; manual entry works without it. Launch at login and notifications are optional user-selected controls. Messages must already be signed in. The first reviewed send may trigger an Automation permission prompt. This v0 does not request Full Disk Access or enable receive.
 
 ## TypeScript client
 
@@ -38,7 +38,7 @@ Reuse an ID only for the same intended command. A timeout after possible dispatc
 
 ## Own cloud
 
-`docker compose up --build` prepares a relay bound to server loopback. Persistent state lives in the named volume. Put your own authenticated HTTPS reverse proxy in front; this project does not create DNS or tunnels. Set `MSGZLE_ORIGIN` to the exact external origin. Protect the setup page and service. Store the relay's connector token in the Mac setup page, and use its separate app token for SDK calls. Both relay and Mac must allow the recipient. Do not expose unencrypted HTTP.
+`docker compose up --build` prepares a relay bound to server loopback. Persistent state lives in the named volume. Put your own authenticated HTTPS reverse proxy in front; this project does not create DNS or tunnels. Set `MSGZLE_ORIGIN` to the exact external origin. Protect the setup page and service. Store the relay's connector token through Advanced > Cloud relay > Set up, and use its separate app token for SDK calls. Both relay and Mac must allow the recipient. Do not expose unencrypted HTTP.
 
 ## Develop
 
