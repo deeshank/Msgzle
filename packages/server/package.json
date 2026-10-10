@@ -1,1 +1,10 @@
-{"name":"@msgzle/server","version":"0.0.1","private":true,"type":"module","license":"MIT","dependencies":{"@photon-ai/imessage-kit":"3.0.0"}}
+{
+  "name": "@msgzle/server",
+  "version": "0.0.2",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "dependencies": {
+    "@photon-ai/imessage-kit": "3.0.0"
+  }
+}
