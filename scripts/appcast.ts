@@ -1,5 +1,5 @@
 import {readFileSync,writeFileSync,statSync} from 'node:fs';
-const version=JSON.parse(readFileSync('package.json','utf8')).version;if(!/^\d+\.\d+\.\d+$/.test(version))throw Error('Invalid version');const build=Number(process.env.MSGZLE_BUILD_NUMBER??1);if(!Number.isSafeInteger(build)||build<1)throw Error('Invalid build');
+const version=process.env.MSGZLE_RELEASE_VERSION??JSON.parse(readFileSync('package.json','utf8')).version;if(!/^\d+\.\d+\.\d+$/.test(version))throw Error('Invalid version');const build=Number(process.env.MSGZLE_BUILD_NUMBER??1);if(!Number.isSafeInteger(build)||build<1)throw Error('Invalid build');
 const arch=process.argv[2];if(!['arm64','x64'].includes(arch))throw Error('Invalid arch');
 const signature=readFileSync('build/signature.txt','utf8').match(/sparkle:edSignature="([A-Za-z0-9+/=]+)"/);
 if(!signature)throw Error('No valid Sparkle signature');
