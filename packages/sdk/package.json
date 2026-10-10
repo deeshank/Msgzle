@@ -1,1 +1,19 @@
-{"name":"msgzle","version":"0.0.1","description":"A small TypeScript client for an self-hosted iMessage bridge.","type":"module","license":"MIT","exports":{".":{"types":"./dist/index.d.ts","import":"./dist/index.js"}},"files":["dist"],"engines":{"node":">=20"}}
+{
+  "name": "msgzle",
+  "version": "0.0.2",
+  "description": "A small TypeScript client for an self-hosted iMessage bridge.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  }
+}
