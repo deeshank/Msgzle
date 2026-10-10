@@ -2,6 +2,10 @@ name: Signed Mac release
 on:
   workflow_dispatch:
     inputs:
+      release_version:
+        description: Version to stamp for a draft release (must match package version)
+        type: string
+        default: ''
       create_draft_release:
         description: Create the version tag and draft prerelease after both builds pass
         type: boolean
@@ -20,9 +24,9 @@ jobs:
       matrix:
         include:
           - arch: arm64
-            runner: macos-14
+            runner: macos-26
           - arch: x64
-            runner: macos-15-intel
+            runner: macos-26-intel
     runs-on: ${{ matrix.runner }}
     environment: release
     env:
@@ -30,6 +34,11 @@ jobs:
       MSGZLE_BUILD_NUMBER: ${{ github.run_number }}
       MSGZLE_SIGNING_IDENTITY: ${{ vars.MSGZLE_SIGNING_IDENTITY }}
     steps:
+      - name: Select Xcode 26.6
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app/Contents/Developer
+          xcodebuild -version
+          xcrun --sdk macosx --show-sdk-version
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
         with:
@@ -38,9 +47,16 @@ jobs:
         env:
           RELEASE_REF: ${{ github.ref }}
           RELEASE_TAG: ${{ github.ref_name }}
+          DRAFT_RELEASE: ${{ inputs.create_draft_release }}
+          REQUESTED_VERSION: ${{ inputs.release_version }}
         run: |
           if [[ "$RELEASE_REF" == refs/tags/* ]]; then
             test "$RELEASE_TAG" = "v$(bun -e 'console.log(require("./package.json").version)')"
+            echo "MSGZLE_RELEASE_VERSION=${RELEASE_TAG#v}" >> "$GITHUB_ENV"
+          elif [[ "$DRAFT_RELEASE" == true ]]; then
+            test -n "$REQUESTED_VERSION"
+            test "$REQUESTED_VERSION" = "$(bun -e 'console.log(require("./package.json").version)')"
+            echo "MSGZLE_RELEASE_VERSION=$REQUESTED_VERSION" >> "$GITHUB_ENV"
           fi
       - run: bun install --frozen-lockfile --ignore-scripts
       - run: bun scripts/patch-photon.mjs
