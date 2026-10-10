@@ -21,6 +21,15 @@ cat > "$app/Contents/Info.plist" <<PLIST
 <key>SUFeedURL</key><string>https://raw.githubusercontent.com/deeshank/Msgzle/main/updates/appcast-$arch.xml</string><key>SUPublicEDKey</key><string>$SPARKLE_PUBLIC_KEY</string><key>SUEnableAutomaticChecks</key><true/><key>SUAllowsAutomaticUpdates</key><true/>
 </dict></plist>
 PLIST
+# Decode lossless source artwork before packaging (browser upload fallback).
+python3 - <<'PYART'
+import pathlib, base64
+root=pathlib.Path('macos/Assets')
+for name in ['AppIcon.png','AppIcon.icns','MenuBarTemplate.png','MenuBarTemplate@2x.png']:
+    parts=sorted(root.glob(name+'.base64.*'))
+    if parts:
+        (root/name).write_bytes(base64.b64decode(''.join(p.read_text().strip() for p in parts)))
+PYART
 cp macos/Assets/AppIcon.icns "$app/Contents/Resources/"
 cp macos/Assets/MenuBarTemplate*.png "$app/Contents/Resources/"
 cp LICENSE "$app/Contents/Resources/Msgzle-LICENSE.txt"
