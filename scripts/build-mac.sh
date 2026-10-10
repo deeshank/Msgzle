@@ -2,7 +2,8 @@
 set -euo pipefail
 : "${SPARKLE_PUBLIC_KEY:?Public update key required}"
 arch="${1:?arm64 or x64}"
-version=$(bun -e 'console.log(require("./package.json").version)')
+version=${MSGZLE_RELEASE_VERSION:-$(bun -e 'console.log(require("./package.json").version)')}
+release_build=false; if [ -n "${MSGZLE_RELEASE_VERSION:-}" ]; then release_build=true; fi
 build_number=${MSGZLE_BUILD_NUMBER:-1}
 case "$arch" in arm64) target=bun-darwin-arm64;swift_target=arm64-apple-macos13.0;; x64) target=bun-darwin-x64;swift_target=x86_64-apple-macos13.0;; *) exit 1;;esac
 mkdir -p build/vendor
@@ -13,13 +14,15 @@ app=build/Msgzle.app
 mkdir -p "$app/Contents/"{MacOS,Resources,Frameworks}
 bun build packages/server/src/server.ts --compile --target="$target" --outfile "$app/Contents/Resources/msgzle-server"
 cp -R build/vendor/Sparkle.framework "$app/Contents/Frameworks/"
-swiftc macos/App.swift -target "$swift_target" -F build/vendor -framework Cocoa -framework Sparkle -Xlinker -rpath -Xlinker @executable_path/../Frameworks -o "$app/Contents/MacOS/Msgzle"
+xcrun --sdk macosx swiftc macos/App.swift macos/Settings.swift -sdk "$(xcrun --sdk macosx --show-sdk-path)" -target "$swift_target" -F build/vendor -framework Cocoa -framework SwiftUI -framework Contacts -framework ServiceManagement -framework UserNotifications -framework Sparkle -Xlinker -rpath -Xlinker @executable_path/../Frameworks -o "$app/Contents/MacOS/Msgzle"
 cat > "$app/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict>
-<key>CFBundleIdentifier</key><string>in.msgzle.app</string><key>CFBundleName</key><string>Msgzle</string><key>CFBundleExecutable</key><string>Msgzle</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleShortVersionString</key><string>$version</string><key>CFBundleVersion</key><string>$build_number</string><key>LSMinimumSystemVersion</key><string>13.0</string><key>LSUIElement</key><true/><key>NSAppleEventsUsageDescription</key><string>Send only messages explicitly requested through your Msgzle service.</string>
+<key>CFBundleIconFile</key><string>AppIcon</string><key>CFBundleIdentifier</key><string>in.msgzle.app</string><key>CFBundleName</key><string>Msgzle</string><key>CFBundleExecutable</key><string>Msgzle</string><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleShortVersionString</key><string>$version</string><key>CFBundleVersion</key><string>$build_number</string><key>MsgzleReleaseBuild</key><$release_build/><key>LSMinimumSystemVersion</key><string>13.0</string><key>LSUIElement</key><true/><key>NSContactsUsageDescription</key><string>Suggest recipients from your Contacts on this Mac. Contacts are not uploaded.</string><key>NSAppleEventsUsageDescription</key><string>Send only messages explicitly requested through your Msgzle service.</string>
 <key>SUFeedURL</key><string>https://raw.githubusercontent.com/deeshank/Msgzle/main/updates/appcast-$arch.xml</string><key>SUPublicEDKey</key><string>$SPARKLE_PUBLIC_KEY</string><key>SUEnableAutomaticChecks</key><true/><key>SUAllowsAutomaticUpdates</key><true/>
 </dict></plist>
 PLIST
+cp macos/Assets/AppIcon.icns "$app/Contents/Resources/"
+cp macos/Assets/MenuBarTemplate*.png "$app/Contents/Resources/"
 cp LICENSE "$app/Contents/Resources/Msgzle-LICENSE.txt"
 cp docs/PHOTON-LICENSE.txt "$app/Contents/Resources/Photon-LICENSE.txt"
 cp build/vendor/LICENSE "$app/Contents/Resources/Sparkle-LICENSE.txt"
@@ -40,6 +43,6 @@ else
 fi
 mkdir -p build/dmg
 cp -R "$app" build/dmg/Msgzle.app
-ln -s /Applications build/dmg/Applications
+if [ ! -e build/dmg/Applications ]; then ln -s /Applications build/dmg/Applications; fi
 hdiutil create -volname Msgzle -srcfolder build/dmg -ov -format UDZO "build/Msgzle-$arch.dmg"
 ditto -c -k --sequesterRsrc --keepParent "$app" "build/Msgzle-$arch.zip"
