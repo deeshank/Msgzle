@@ -1,5 +1,6 @@
 {
   "lockfileVersion": 1,
+  "configVersion": 0,
   "workspaces": {
     "": {
       "name": "msgzle-workspace",
@@ -8,19 +9,25 @@
         "typescript": "5.9.3",
       },
     },
+    "packages/platform": {
+      "name": "@msgzle/platform",
+      "version": "0.0.0",
+    },
     "packages/sdk": {
       "name": "msgzle",
-      "version": "0.0.1",
+      "version": "0.0.2",
     },
     "packages/server": {
       "name": "@msgzle/server",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "dependencies": {
         "@photon-ai/imessage-kit": "3.0.0",
       },
     },
   },
   "packages": {
+    "@msgzle/platform": ["@msgzle/platform@workspace:packages/platform"],
+
     "@msgzle/server": ["@msgzle/server@workspace:packages/server"],
 
     "@parseaple/bplist": ["@parseaple/bplist@1.0.1", "", {}, "sha512-HHZKfvCaY8r5lwc6YCiAIhpAwH56YR29JPQa/9ZW0UqzjqdzFidGgoWVIhIF8tPXCwivIt93vbyT0O5bpC1Twg=="],
