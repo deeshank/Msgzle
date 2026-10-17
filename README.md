@@ -52,6 +52,12 @@ The Mac app includes Sparkle 2.10.0. Generate one Ed25519 seed, keep it private 
 
 Automatic update installation is not yet verified end to end. It requires a signed second release and a Mac upgrade test. Apple Developer ID signing is separate from Sparkle signature verification. Dependency patches go through CI/review, not unattended npm-latest installation. Releases must preserve the pinned signing key; future versions need their version/build/feed metadata bumped together.
 
+## Central platform alpha (local branch)
+
+`packages/platform` contains the first local slice of the optional hosted Central model: password-based account signup/sign-in, device pairing, app registration, a user grant for `messages.send`, an encrypted send queue, outbound Mac polling, and status reporting. Passwords are salted with scrypt, sessions expire after 30 days, and sign-in attempts are rate limited. Central stores encrypted envelopes only; recipient and message text are decrypted on the paired Mac, which still applies sending-off and recipient allowlist policy before dispatch. Receive, history, attachments, hosted deployment, and npm publication are not part of this slice.
+
+The Mac Settings app includes an experimental **Msgzle Central** setup under Advanced. It signs up or signs in through the local admin API, starts pairing, displays the one-time pairing code, and approves that code for the signed-in user. The user session stays in app memory; only the Central URL, device token, and device private key are saved in the existing 0600 local config. For local development, `createCentral({ allowLocalSignup: true })` can still create test user tokens; do not enable that outside local development. The existing local and self-hosted relay modes remain supported.
+
 ## License
 
 MIT for Msgzle. Photon retains its MIT notice in `docs/PHOTON-LICENSE.txt`. Sparkle retains its own license in packaged builds. Other dependency licenses remain in their distributions. Msgzle is not affiliated with Apple or Photon.
