@@ -1,6 +1,7 @@
 import type {EncryptedEnvelope} from './central-crypto';
 export type CentralCommandState='queued'|'attempting'|'dispatch-accepted'|'uncertain'|'cancelled'|'policy-rejected';
-export interface CentralUser {id:string;label:string;email?:string;createdAt:number;}
+export type CentralAuthProvider='google'|'apple';
+export interface CentralUser {id:string;label:string;email?:string;googleSub?:string;appleSub?:string;createdAt:number;}
 export interface CentralDevice {id:string;userId:string|null;label:string;publicKey:JsonWebKey;status:'pending'|'active';createdAt:number;}
 export interface CentralApp {id:string;ownerUserId:string;name:string;publicKey:JsonWebKey;createdAt:number;}
 export interface CentralGrant {id:string;userId:string;deviceId:string;appId:string;scopes:string[];status:'active'|'revoked';createdAt:number;}
@@ -10,9 +11,9 @@ export class MsgzleCentral {
  constructor(options:{baseUrl:string;fetch?:typeof fetch}) {this.base=new URL(options.baseUrl);if(this.base.protocol!=='https:'&&!( ['localhost','127.0.0.1','[::1]'].includes(this.base.hostname)&&this.base.protocol==='http:'))throw new Error('Use HTTPS, except for loopback development.');if(this.base.username||this.base.password||this.base.search||this.base.hash)throw new Error('Base URL cannot contain credentials, query or fragment.');this.fetch=options.fetch??fetch;}
  private readonly fetch:typeof fetch;
  private async request<T>(path:string,body?:unknown,token?:string):Promise<T> {const response=await this.fetch(new URL(path,this.base),{method:body===undefined?'GET':'POST',redirect:'error',headers:{'content-type':'application/json',...(token?{authorization:`Bearer ${token}`}:{})},body:body===undefined?undefined:JSON.stringify(body)});if(!response.ok)throw new Error(`Msgzle Central HTTP ${response.status}: ${await response.text()}`);return response.json() as Promise<T>;}
- health():Promise<{version:string;role:'central';receive:false}> {return this.request('/v1/health');}
- signUp(email:string,password:string,label?:string):Promise<{user:CentralUser;user_token:string}> {return this.request('/v1/auth/signup',{email,password,label});}
- signIn(email:string,password:string):Promise<{user:CentralUser;user_token:string}> {return this.request('/v1/auth/sign-in',{email,password});}
+ health():Promise<{version:string;role:'central';receive:false;auth:Record<CentralAuthProvider,boolean>}> {return this.request('/v1/health');}
+ startSignIn(provider:CentralAuthProvider):Promise<{provider:CentralAuthProvider;state:string;auth_url:string}> {return this.request(`/v1/auth/${provider}/start`,{});}
+ signInStatus(provider:CentralAuthProvider,state:string):Promise<{status:'pending'}|{status:'complete';user:CentralUser;user_token:string}> {return this.request(`/v1/auth/${provider}/status`,{state});}
  startPairing(label:string,publicKey:JsonWebKey):Promise<{device_id:string;pair_code:string;device_token:string}> {return this.request('/v1/pairing/start',{label,public_key:publicKey});}
  approvePairing(pairCode:string,userToken:string):Promise<{device:CentralDevice}> {return this.request('/v1/pairing/approve',{pair_code:pairCode},userToken);}
  registerApp(name:string,publicKey:JsonWebKey,userToken:string):Promise<{app:CentralApp;app_token:string}> {return this.request('/v1/apps',{name,public_key:publicKey},userToken);}
