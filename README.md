@@ -52,6 +52,14 @@ The Mac app includes Sparkle 2.10.0. Generate one Ed25519 seed, keep it private 
 
 Automatic update installation is not yet verified end to end. It requires a signed second release and a Mac upgrade test. Apple Developer ID signing is separate from Sparkle signature verification. Dependency patches go through CI/review, not unattended npm-latest installation. Releases must preserve the pinned signing key; future versions need their version/build/feed metadata bumped together.
 
+## Central platform alpha (local branch)
+
+`packages/platform` contains the first local slice of the optional hosted Central model: Google and Apple OIDC sign-in, device pairing, app registration, a user grant for `messages.send`, an encrypted send queue, outbound Mac polling, and status reporting. Both providers use authorization-code sign-in with PKCE, state, nonce and provider JWKS validation. Central creates 30-day sessions only after the provider callback completes; sign-in starts are rate limited. Central stores encrypted envelopes only; recipient and message text are decrypted on the paired Mac, which still applies sending-off and recipient allowlist policy before dispatch. Receive, history, attachments, hosted deployment, and npm publication are not part of this slice.
+
+The Mac Settings app includes an experimental **Msgzle Central** setup under Advanced. It opens Google or Apple sign-in in the browser, polls the local admin API for completion, starts pairing, displays the one-time pairing code, and approves that code for the signed-in user. The user session stays in app memory; only the Central URL, device token, and device private key are saved in the existing 0600 local config. For local development, `createCentral({ allowLocalSignup: true })` can still create test user tokens; do not enable that outside local development. The existing local and self-hosted relay modes remain supported.
+
+Google sign-in is configured with `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI`. Apple sign-in is configured with `APPLE_CLIENT_ID`, `APPLE_REDIRECT_URI`, and either `APPLE_CLIENT_SECRET` or the `APPLE_TEAM_ID`, `APPLE_KEY_ID`, and `APPLE_PRIVATE_KEY` values used to generate the required client-secret JWT. Both redirect URIs must exactly match the provider console values and point to this service's `/v1/auth/<provider>/callback` endpoints.
+
 ## License
 
 MIT for Msgzle. Photon retains its MIT notice in `docs/PHOTON-LICENSE.txt`. Sparkle retains its own license in packaged builds. Other dependency licenses remain in their distributions. Msgzle is not affiliated with Apple or Photon.
