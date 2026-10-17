@@ -22,8 +22,8 @@ final class SettingsModel: ObservableObject {
  @Published var relayURL = ""
  @Published var relayToken = ""
  @Published var centralURL = ""
- @Published var centralEmail = ""
- @Published var centralPassword = ""
+ @Published var centralAuthState = ""
+ @Published var centralAuthProvider = ""
  @Published var centralUserToken = ""
  @Published var centralPairCode = ""
  @Published var centralPaired = false
@@ -39,6 +39,7 @@ final class SettingsModel: ObservableObject {
  var contacts: [(String,String)] = []
  unowned let owner: AppDelegate
  var lastNotified = ""
+ var centralAuthTimer: Timer?
  init(_ owner: AppDelegate) { self.owner = owner; login = SMAppService.mainApp.status == .enabled; automaticUpdates = owner.updater.updater.automaticallyDownloadsUpdates; timer = Timer.scheduledTimer(withTimeInterval:10,repeats:true) { [weak self] _ in self?.refresh() } }
  var version: String { let v = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"; let b = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "?"; return Bundle.main.object(forInfoDictionaryKey: "MsgzleReleaseBuild") as? Bool == true ? "v\(v) (\(b))" : "Build \(b)" }
  func request(_ path: String, body: [String:Any]? = nil, completion: @escaping ([String:Any]?) -> Void) {
@@ -95,10 +96,9 @@ final class SettingsModel: ObservableObject {
  func setUpdates() { owner.updater.updater.automaticallyChecksForUpdates = automaticUpdates; owner.updater.updater.automaticallyDownloadsUpdates = automaticUpdates }
  func copyToken() { let paste = NSPasteboard.general; paste.clearContents(); paste.setString(accessToken,forType:.string); let count = paste.changeCount; DispatchQueue.main.asyncAfter(deadline:.now()+60) { if paste.changeCount == count { paste.clearContents() } }; message = "Copied. Clipboard clears in 60 seconds if unchanged." }
  func pair() { request("/admin/relay",body:["url":relayURL,"token":relayToken]) { [weak self] r in if r != nil { self?.relayToken = ""; self?.message = "Relay saved" } } }
- func centralSignUp() { request("/admin/central/signup",body:["url":centralURL,"email":centralEmail,"password":centralPassword,"label":Host.current().localizedName ?? "Mac"]) { [weak self] r in guard let self = self, let r = r else { return }; self.centralUserToken = r["user_token"] as? String ?? ""; self.centralPassword = ""; self.centralURL = r["centralUrl"] as? String ?? self.centralURL; self.message = "Signed in. Start pairing this Mac." } }
- func centralSignIn() { request("/admin/central/sign-in",body:["url":centralURL,"email":centralEmail,"password":centralPassword]) { [weak self] r in guard let self = self, let r = r else { return }; self.centralUserToken = r["user_token"] as? String ?? ""; self.centralPassword = ""; self.centralURL = r["centralUrl"] as? String ?? self.centralURL; self.message = "Signed in. Start pairing this Mac." } }
- func centralStartPairing() { request("/admin/central/pair/start",body:["url":centralURL,"label":Host.current().localizedName ?? "Mac"]) { [weak self] r in guard let self = self, let r = r else { return }; self.centralPairCode = r["pair_code"] as? String ?? ""; self.centralURL = r["centralUrl"] as? String ?? self.centralURL; self.message = self.centralPairCode.isEmpty ? "Pairing started." : "Approve code " + self.centralPairCode + "." } }
- func centralApprovePairing() { request("/admin/central/pair/approve",body:["pair_code":centralPairCode,"user_token":centralUserToken]) { [weak self] r in guard let self = self, r != nil else { return }; self.centralPaired = true; self.centralPairCode = ""; self.centralUserToken = ""; self.message = "This Mac is paired with Msgzle Central." } }
+ func centralSignIn(_ provider: String) { request("/admin/central/auth/start",body:["url":centralURL,"provider":provider]) { [weak self] r in guard let self = self, let r = r else { return }; self.centralAuthState = r["state"] as? String ?? ""; self.centralAuthProvider = provider; if let authURL = r["auth_url"] as? String, let url = URL(string:authURL) { NSWorkspace.shared.open(url) }; let name = provider == "google" ? "Google" : "Apple"; self.message = "Finish " + name + " sign-in in your browser."; self.centralAuthTimer?.invalidate(); self.centralAuthTimer = Timer.scheduledTimer(withTimeInterval:2,repeats:true) { [weak self] _ in self?.centralPollSignIn() } } }
+ func centralPollSignIn() { guard !centralAuthState.isEmpty, !centralAuthProvider.isEmpty else { return }; request("/admin/central/auth/status",body:["provider":centralAuthProvider,"state":centralAuthState]) { [weak self] r in guard let self = self, let r = r else { return }; if let token = r["user_token"] as? String { self.centralUserToken = token; self.centralAuthState = ""; self.centralAuthTimer?.invalidate(); self.centralAuthTimer = nil; self.message = "Signed in. Start pairing this Mac." } } }
+ func cancelCentralSignIn() { centralAuthTimer?.invalidate(); centralAuthTimer = nil; centralAuthState = ""; centralAuthProvider = "" }
  func sendTest() { owner.log("Test send submitted to local API"); request("/v1/commands",body:["id":UUID().uuidString,"to":testRecipient,"text":testText]) { [weak self] r in if r != nil { self?.owner.log("Test command queued"); self?.showTest = false; self?.message = "Test queued. Submitted does not mean delivered." } } }
 }
 struct SettingsView: View {
@@ -210,9 +210,8 @@ struct SettingsView: View {
    VStack(alignment:.leading,spacing:14) {
     Text("Msgzle Central").font(.headline)
     TextField("Central URL",text:$model.centralURL)
-    TextField("Email",text:$model.centralEmail)
-    SecureField("Password (12+ characters)",text:$model.centralPassword)
-    HStack { Button("Create account") { model.centralSignUp() }; Button("Sign in") { model.centralSignIn() } }.disabled(model.centralURL.isEmpty || model.centralEmail.isEmpty || model.centralPassword.count < 12)
+    Text("Google or Apple opens in your browser and may ask you to approve the sign-in on your phone.").font(.caption).foregroundStyle(.secondary)
+    HStack { Button("Sign in with Google") { model.centralSignIn("google") }; Button("Sign in with Apple") { model.centralSignIn("apple") } }.disabled(model.centralURL.isEmpty || !model.centralAuthState.isEmpty)
     Divider()
     if model.centralPairCode.isEmpty {
      Text("Pairing stores an encrypted device key on this Mac. Central only routes ciphertext.").font(.caption).foregroundStyle(.secondary)
@@ -222,7 +221,7 @@ struct SettingsView: View {
      Button("Approve this Mac") { model.centralApprovePairing() }
     }
     if !model.message.isEmpty { Text(model.message).font(.caption).foregroundStyle(.secondary) }
-    HStack { Button("Close") { model.centralPassword = ""; showCentral = false }; Spacer() }
+    HStack { Button("Close") { model.cancelCentralSignIn(); showCentral = false }; Spacer() }
    }.padding(24).frame(width:400)
   }
  }
